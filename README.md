@@ -7,23 +7,6 @@ Interface web para análise sociolinguística variacionista, integrando
 cd Marina-Socioling
 docker compose up -d --build
 
-Acesse: http://localhost:8501
-
-## Estrutura
-
-```
-socioling-suite/
-├── docker-compose.yml
-├── .env.example
-├── README.md
-└── interface/
-    ├── Dockerfile
-    ├── requirements.txt
-    ├── app.py
-    ├── .dockerignore
-    └── scripts/
-        └── run_rbrul.R
-```
 
 ## Uso
 
