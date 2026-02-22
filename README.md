@@ -3,17 +3,9 @@
 Interface web para análise sociolinguística variacionista, integrando
 **Rbrul** (regressão logística / regras variáveis) e **Variationist** (métricas de variação em corpus).
 
-## Pré-requisitos
-- Docker >= 24
-- Docker Compose >= 2.x
-
-## Como subir
-
 ```bash
-git clone <seu-repo>
-cd socioling-suite
+cd Marina-Socioling
 docker compose up -d --build
-```
 
 Acesse: http://localhost:8501
 
@@ -43,3 +35,6 @@ socioling-suite/
 ## Notas
 - O Rbrul usa `lme4::glmer` (efeitos mistos) quando um efeito aleatório é selecionado
 - O Variationist suporta métricas: `frequency`, `pmi`, `npmi`, `tf-idf`
+
+https://github.com/homi-lindo/Marina-Socioling.git
+cd Marina-Socioling
