@@ -22,7 +22,7 @@ with st.sidebar:
     st.markdown("---")
     ferramenta = st.radio(
         "Selecione a ferramenta",
-        ["Regressão", "Variação"],
+        ["Análise Regresiva", "Análise Variacionista"],
         label_visibility="collapsed",
     )
     st.markdown("---")
@@ -32,7 +32,7 @@ with st.sidebar:
 # ── Upload ────────────────────────────────────────────────────────────────────
 st.header("Upload de Dados")
 uploaded = st.file_uploader(
-    "Carregue seu arquivo CSV ou TXT (cada linha = 1 token)",
+    "Upload: CSV ou TXT (cada linha = 1 token)",
     type=["csv", "txt"],
     help="CSV ou TXT com cabeçalho. Separador: vírgula (CSV) ou tabulação (TXT).",
 )
@@ -57,8 +57,8 @@ st.markdown("---")
 # ═════════════════════════════════════════════════════════════════════════════
 # RBRUL
 # ═════════════════════════════════════════════════════════════════════════════
-if ferramenta == "Regressão":
-    st.header("📊 Análise com Rbrul")
+if ferramenta == "Análise Regressiva":
+    st.header("Análise Regressiva")
     st.markdown(
         "Regressão logística variacionista com efeitos mistos, "
         "substituto direto do GoldVarb X."
@@ -127,8 +127,8 @@ if ferramenta == "Regressão":
 # ═════════════════════════════════════════════════════════════════════════════
 # VARIATIONIST
 # ═════════════════════════════════════════════════════════════════════════════
-elif ferramenta == "Variação":
-    st.header("🧩 Análise com Variationist")
+elif ferramenta == "Análise Variacionista":
+    st.header("Análise Variacionista")
     st.markdown(
         "Análise de variação e métricas de associação em corpus textual "
         "([ACL 2024](https://aclanthology.org/2024.acl-demos.33/))."
