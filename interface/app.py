@@ -150,8 +150,8 @@ elif ferramenta == "🧩 Variationist":
 
     metrica = st.selectbox(
         "Métrica de associação",
-        ["frequency", "pmi", "npmi", "tf-idf"],
-        help="Como medir a associação entre texto e variável.",
+        ["npw_pmi", "npw_pmi2", "npw_pmi3", "npw_npmi", "npw_llr"],
+        help="npw_pmi é a métrica padrão recomendada pelo Variationist.",
     )
 
     top_n = st.slider("Top N unidades para exibir", 5, 50, 20)
