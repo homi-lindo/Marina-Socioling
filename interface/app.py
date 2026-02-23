@@ -284,7 +284,7 @@ if st.button("▶ Rodar análise completa", type="primary", use_container_width=
                         metrics=TODAS_METRICAS,
                         n_tokens=1,
                         language=idioma,
-                        stopwords=False,
+                        stopwords=true,
                         lowercase=True,
                     )
 
