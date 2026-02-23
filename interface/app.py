@@ -7,7 +7,7 @@ import plotly.express as px
 
 # ── Configuração da página ────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="Análise Sociolinguística",
+    page_title="Marina-Socioling",
     page_icon="🔬",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -18,7 +18,7 @@ RBRUL_SCRIPT = "/app/scripts/run_rbrul.R"
 
 # ── Sidebar ───────────────────────────────────────────────────────────────────
 with st.sidebar:
-    st.title("🔬 Socioling Suite")
+    st.title("Marina-Socioling")
     st.markdown("---")
     ferramenta = st.radio(
         "Selecione a ferramenta",
