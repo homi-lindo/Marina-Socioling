@@ -8,7 +8,6 @@ import plotly.express as px
 # ── Configuração da página ────────────────────────────────────────────────────
 st.set_page_config(
     page_title="Marina-Socioling",
-    page_icon="🔬",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -18,11 +17,11 @@ RBRUL_SCRIPT = "/app/scripts/run_rbrul.R"
 
 # ── Sidebar ───────────────────────────────────────────────────────────────────
 with st.sidebar:
-    st.title("🔬 Marina-Socioling")
+    st.title("Marina-Socioling")
     st.markdown("---")
     ferramenta = st.radio(
         "Selecione a ferramenta",
-        ["📊 Rbrul", "🧩 Variationist"],
+        ["Rbrul", "Variationist"],
         label_visibility="collapsed",
     )
     st.markdown("---")
@@ -38,7 +37,7 @@ uploaded = st.file_uploader(
 )
 
 if not uploaded:
-    st.info("⬆️ Faça o upload de um CSV ou TXT para começar.")
+    st.info("Faça o upload de um CSV ou TXT para começar.")
     st.stop()
 
 if uploaded.name.endswith(".txt"):
@@ -48,7 +47,7 @@ else:
 
 colunas = df.columns.tolist()
 
-with st.expander("👁️ Pré-visualização dos dados", expanded=True):
+with st.expander("Pré-visualização dos dados", expanded=True):
     st.dataframe(df.head(20), use_container_width=True)
     st.caption(f"{len(df)} linhas · {len(colunas)} colunas")
 
@@ -57,8 +56,8 @@ st.markdown("---")
 # ═════════════════════════════════════════════════════════════════════════════
 # RBRUL
 # ═════════════════════════════════════════════════════════════════════════════
-if ferramenta == "📊 Rbrul":
-    st.header("📊 Análise com Rbrul")
+if ferramenta == "Rbrul":
+    st.header("Análise com Rbrul")
     st.markdown(
         "Regressão logística variacionista com efeitos mistos, "
     )
@@ -87,7 +86,7 @@ if ferramenta == "📊 Rbrul":
         st.warning("Selecione ao menos um grupo de fatores.")
         st.stop()
 
-    with st.expander("📈 Distribuição da variável dependente"):
+    with st.expander("Distribuição da variável dependente"):
         fig = px.histogram(df, x=dep_var, color=dep_var, title=f"Distribuição: {dep_var}")
         st.plotly_chart(fig, use_container_width=True)
 
@@ -126,8 +125,8 @@ if ferramenta == "📊 Rbrul":
 # ═════════════════════════════════════════════════════════════════════════════
 # VARIATIONIST
 # ═════════════════════════════════════════════════════════════════════════════
-elif ferramenta == "🧩 Variationist":
-    st.header("🧩 Análise com Variationist")
+elif ferramenta == "Variationist":
+    st.header("Análise com Variationist")
     st.markdown(
         "Análise de variação e métricas de associação em corpus textual "
         "([ACL 2024](https://aclanthology.org/2024.acl-demos.33/))."
