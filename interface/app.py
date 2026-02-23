@@ -100,11 +100,11 @@ tem_rbrul       = dep_var is not None
 tem_variationist = col_texto is not None
 
 if not tem_rbrul and not tem_variationist:
-    st.error("⚠️ Não foi possível detectar colunas compatíveis com Rbrul ou Variationist.")
+    st.error("Não foi possível detectar colunas compatíveis com Rbrul ou Variationist.")
     st.stop()
 
 # Exibe o que foi detectado
-with st.expander("🔍 Detecção automática", expanded=True):
+with st.expander("Detecção automática", expanded=True):
     col1, col2 = st.columns(2)
     with col1:
         st.markdown("**Rbrul**")
@@ -112,7 +112,7 @@ with st.expander("🔍 Detecção automática", expanded=True):
             excluir_rbrul = {dep_var, falante or ""}
             fatores = [c for c in colunas if c not in excluir_rbrul]
             rand_eff = falante
-            st.success(f"✅ Variável dependente: `{dep_var}`")
+            st.success(f"Variável dependente: `{dep_var}`")
             st.info(f"Efeito aleatório: `{rand_eff or 'nenhum'}`")
             st.info(f"Fatores: `{', '.join(fatores)}`")
         else:
@@ -123,7 +123,7 @@ with st.expander("🔍 Detecção automática", expanded=True):
             excluir_var = {col_texto}
             col_variavel = detectar_variavel_social(df, excluir_var)
             idioma = detectar_idioma(df, col_texto)
-            st.success(f"✅ Coluna de texto: `{col_texto}`")
+            st.success(f"Coluna de texto: `{col_texto}`")
             st.info(f"Variável social: `{col_variavel or 'não detectada'}`")
             st.info(f"Idioma detectado: `{idioma}`")
         else:
@@ -138,7 +138,7 @@ if st.button("▶ Rodar análise completa", type="primary", use_container_width=
     # RBRUL
     # ═══════════════════════════════════════════════════════════════════════════
     if tem_rbrul:
-        st.subheader("📊 Rbrul — Regressão Logística Variacionista")
+        st.subheader("Rbrul — Regressão Logística Variacionista")
         with st.spinner("Executando modelo de regressão logística em R..."):
             tmp_csv = os.path.join(DADOS_PATH, "rbrul_input.csv")
             df[colunas].to_csv(tmp_csv, index=False)
@@ -150,7 +150,7 @@ if st.button("▶ Rodar análise completa", type="primary", use_container_width=
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
 
         if result.returncode == 0:
-            st.success("✅ Rbrul concluído!")
+            st.success("Rbrul concluído!")
             st.code(result.stdout, language="r")
             st.download_button(
                 "⬇️ Baixar output Rbrul (.txt)",
@@ -159,14 +159,14 @@ if st.button("▶ Rodar análise completa", type="primary", use_container_width=
                 mime="text/plain",
             )
         else:
-            st.error("❌ Erro no Rbrul.")
+            st.error("Erro no Rbrul.")
             st.code(result.stderr, language="bash")
 
     # ═══════════════════════════════════════════════════════════════════════════
     # VARIATIONIST
     # ═══════════════════════════════════════════════════════════════════════════
     if tem_variationist and col_variavel:
-        st.subheader("📈 Variationist — Métricas de Associação")
+        st.subheader("Variationist — Métricas de Associação")
         with st.spinner("Calculando todas as métricas de variação..."):
             try:
                 from variationist import Inspector, InspectorArgs, Visualizer, VisualizerArgs
@@ -185,7 +185,7 @@ if st.button("▶ Rodar análise completa", type="primary", use_container_width=
                 )
 
                 res = Inspector(dataset=tmp_tsv, args=ins_args).inspect()
-                st.success("✅ Variationist concluído!")
+                st.success("Variationist concluído!")
 
                 tabs = st.tabs(TODAS_METRICAS)
                 for tab, metrica in zip(tabs, TODAS_METRICAS):
@@ -218,8 +218,8 @@ if st.button("▶ Rodar análise completa", type="primary", use_container_width=
                 )
 
             except Exception as e:
-                st.error(f"❌ Erro no Variationist: {e}")
+                st.error(f"Erro no Variationist: {e}")
                 st.exception(e)
 
     elif tem_variationist and not col_variavel:
-        st.warning("⚠️ Variationist: nenhuma variável social detectada no arquivo.")
+        st.warning("Variationist: nenhuma variável social detectada no arquivo.")
