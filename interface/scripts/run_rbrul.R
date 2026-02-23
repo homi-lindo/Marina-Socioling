@@ -1,3 +1,9 @@
+pkgs <- c("lme4", "boot")
+new_pkgs <- pkgs[!(pkgs %in% installed.packages()[,"Package"])]
+if (length(new_pkgs) > 0) {
+  install.packages(new_pkgs, repos="https://cran.r-project.org", quiet=TRUE)
+}
+
 #!/usr/bin/env Rscript
 # Uso: Rscript run_rbrul.R <csv_path> <dep_var> <fator1,fator2,...> [random_effect]
 
