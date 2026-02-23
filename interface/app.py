@@ -151,6 +151,18 @@ elif ferramenta == "Variationist":
         ["npw_pmi", "npw_pmi2", "npw_pmi3", "npw_npmi", "npw_llr"],
         help="npw_pmi é a métrica padrão recomendada pelo Variationist.",
     )
+    
+    idioma = st.selectbox(
+        ["pt", "en", "de", "ru"],
+        help="Usado para remoção de stopwords. pt=português, en=inglês, de=alemão, ru=russo.",
+    )
+
+    usar_stopwords = st.toggle(
+        "Remover stopwords",
+        value=False,
+        help="Remove palavras muito frequentes (artigos, preposições, etc.). Desative se tiver dúvidas.",
+    )
+
 
     top_n = st.slider("Top N unidades para exibir", 5, 50, 20)
 
@@ -167,8 +179,8 @@ elif ferramenta == "Variationist":
                     var_names=[col_variavel],
                     metrics=[metrica],
                     n_tokens=1,
-                    language="pt",
-                    stopwords=False,   # True remove stopwords, mas pt pode ter suporte limitado na v0.1.6
+                    language="idioma",
+                    stopwords=usar_stopwords,   # True remove stopwords, mas pt pode ter suporte limitado na v0.1.6
                     lowercase=True,
                 )
 
