@@ -33,8 +33,8 @@ with st.sidebar:
 st.header("Upload de Dados")
 uploaded = st.file_uploader(
     "Carregue seu arquivo CSV (cada linha = 1 token)",
-    type=["csv"],
-    help="O arquivo deve ter cabeçalho. Cada coluna é uma variável.",
+    type=["csv", "txt"],
+    help="CSV OU TXT, com cabeçalho. Separador: vírgula (csv); tabulação (txt)",
 )
 
 if not uploaded:
