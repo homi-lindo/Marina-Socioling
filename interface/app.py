@@ -41,7 +41,11 @@ if not uploaded:
     st.info("⬆️ Faça o upload de um CSV para começar.")
     st.stop()
 
-df = pd.read_csv(uploaded)
+if uploaded.name.endswith(".txt"):
+    df = pd.read_csv(uploaded, sep="\t")
+else:
+    df = pd.read_csv(uploaded)
+    
 colunas = df.columns.tolist()
 
 with st.expander("👁️ Pré-visualização dos dados", expanded=True):
