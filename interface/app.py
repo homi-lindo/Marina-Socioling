@@ -169,8 +169,11 @@ elif ferramenta == "🧩 Variationist":
                     var_names=[col_variavel],
                     metrics=[metrica],
                     n_tokens=1,
+                    language="pt",
+                    stopwords=False,   # True remove stopwords, mas pt pode ter suporte limitado na v0.1.6
                     lowercase=True,
                 )
+
 
                 res = Inspector(dataset=tmp_tsv, args=ins_args).inspect()
 
