@@ -1,5 +1,5 @@
 streamlit==1.35.0
 pandas==2.2.2
 plotly==5.19.0
-variationist==0.3.0
+variationist==0.1.6
 openpyxl==3.1.2
