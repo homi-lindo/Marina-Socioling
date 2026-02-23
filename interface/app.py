@@ -13,51 +13,143 @@ st.set_page_config(
 
 DADOS_PATH = os.environ.get("DADOS_PATH", "/app/dados")
 RBRUL_SCRIPT = "/app/scripts/run_rbrul.R"
-TODAS_METRICAS = ["npw_pmi", "npw_pmi2", "npw_pmi3", "npw_npmi", "npw_llr"]
+
+# Métricas reais da versão instalada
+METRICAS_PMI        = ["pmi", "n_pmi", "p_pmi", "np_pmi", "w_pmi", "nw_pmi", "pw_pmi", "npw_pmi",
+                        "np_relevance", "nw_relevance", "npw_relevance"]
+METRICAS_LEXICAIS   = ["ttr", "root_ttr", "maas", "log_ttr"]
+METRICAS_CORPUS     = ["freq", "stats"]
+TODAS_METRICAS      = METRICAS_PMI + METRICAS_LEXICAIS + METRICAS_CORPUS
+
+CANDIDATOS_SOCIAIS  = ["genero", "gênero", "faixa_etaria", "faixa etária", "escolaridade",
+                       "regiao", "região", "estilo", "classe", "sexo", "grupo"]
+CANDIDATOS_FALANTE  = ["falante", "speaker", "informante", "participante", "sujeito"]
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
-def detectar_binaria(df):
-    for col in df.columns:
-        if df[col].nunique() == 2:
-            return col
-    return None
+def detectar_binárias(df):
+    return [c for c in df.columns if df[c].nunique() == 2]
 
-def detectar_texto(df):
+def detectar_textos(df):
+    """Colunas onde a média de palavras por célula é > 3."""
+    cols = []
     for col in df.columns:
         if df[col].dtype == object:
-            media_palavras = df[col].dropna().str.split().str.len().mean()
-            if media_palavras and media_palavras > 3:
-                return col
-    return None
+            media = df[col].dropna().str.split().str.len().mean()
+            if media and media > 3:
+                cols.append(col)
+    return cols
 
 def detectar_falante(df):
-    candidatos = ["falante", "speaker", "informante", "participante", "sujeito", "id"]
     for col in df.columns:
-        if col.lower() in candidatos:
+        if col.lower() in CANDIDATOS_FALANTE:
             return col
     return None
 
-def detectar_variavel_social(df, excluir):
-    candidatos = ["genero", "gênero", "faixa_etaria", "faixa etária", "escolaridade",
-                  "regiao", "região", "estilo", "classe", "sexo", "grupo"]
+def detectar_sociais(df, excluir):
+    """Retorna todas as colunas que parecem variáveis sociais."""
+    sociais = []
     for col in df.columns:
-        if col.lower() in candidatos and col not in excluir:
-            return col
-    # fallback: primeira coluna categórica não excluída
-    for col in df.columns:
-        if col not in excluir and df[col].dtype == object and df[col].nunique() < 20:
-            return col
-    return None
+        if col in excluir:
+            continue
+        if col.lower() in CANDIDATOS_SOCIAIS:
+            sociais.append(col)
+    if not sociais:
+        # fallback: colunas categóricas com poucos valores únicos
+        for col in df.columns:
+            if col not in excluir and df[col].dtype == object and 2 <= df[col].nunique() <= 10:
+                sociais.append(col)
+    return sociais
 
-def detectar_idioma(df, col_texto):
-    amostra = " ".join(df[col_texto].dropna().head(20).tolist()).lower()
-    if any(w in amostra for w in ["der", "die", "das", "und", "ist"]):
-        return "de"
-    if any(w in amostra for w in ["и", "в", "не", "на", "что"]):
+def corrigir_texto(df, col):
+    """Garante espaço entre tokens grudados."""
+    import re
+    df[col] = df[col].astype(str).apply(lambda x: re.sub(r'([a-záàãâéêíóôõúüçA-Z])([A-ZÁÀÃÂÉÊÍÓÔÕÚÜÇ])', r'\1 \2', x))
+    return df
+
+def detectar_idioma(df, cols_texto):
+    amostra = ""
+    for col in cols_texto:
+        amostra += " " + " ".join(df[col].dropna().head(50).tolist()).lower()
+
+    palavras_amostra = set(amostra.split())
+
+    # ── Detecção por script (caracteres únicos) ───────────────────────────────
+    # Cirílico → russo imediato
+    chars_cirílico = sum(1 for c in amostra if '\u0400' <= c <= '\u04FF')
+    if chars_cirílico > 10:
         return "ru"
-    if any(w in amostra for w in ["the", "and", "is", "of", "to"]):
-        return "en"
-    return "pt"
+
+    # Umlauts e ß → forte indicador de alemão
+    chars_de = sum(1 for c in amostra if c in "äöüßÄÖÜ")
+    if chars_de > 5:
+        return "de"
+
+    # ── Stopwords por idioma ──────────────────────────────────────────────────
+    stopwords = {
+        "pt": [
+            "que", "não", "uma", "com", "para", "mais", "por", "ele", "ela", "mas",
+            "como", "seu", "sua", "dos", "das", "nos", "nas", "isso", "esse", "essa",
+            "este", "esta", "aqui", "então", "também", "já", "muito", "bem", "quando",
+            "onde", "quem", "qual", "porque", "assim", "ainda", "depois", "antes",
+            "sempre", "nunca", "havia", "seria", "estava", "foram", "tinha", "tudo",
+            "nada", "cada", "outro", "outra", "gente", "hoje", "agora", "aquele",
+            "aquela", "nosso", "nossa", "vocês", "eles", "elas", "numa", "nesse",
+            "nessa", "desse", "dessa", "àquele", "àquela", "sobre", "entre", "até"
+        ],
+        "en": [
+            "the", "and", "is", "of", "to", "in", "that", "it", "was", "for",
+            "on", "are", "with", "his", "they", "at", "be", "this", "from", "or",
+            "had", "by", "not", "but", "what", "all", "were", "when", "we", "there",
+            "can", "an", "your", "which", "their", "said", "if", "do", "into", "has",
+            "more", "her", "him", "see", "time", "could", "make", "than", "been",
+            "would", "who", "will", "my", "one", "about", "up", "out", "so", "them"
+        ],
+        "de": [
+            "der", "die", "das", "und", "ist", "ich", "nicht", "mit", "ein", "eine",
+            "auch", "auf", "sich", "als", "dem", "des", "zu", "es", "bei", "so",
+            "war", "von", "aber", "noch", "wird", "sie", "nach", "an", "wie", "im",
+            "für", "haben", "kann", "doch", "hier", "wenn", "dann", "wir", "man",
+            "aus", "durch", "mehr", "oder", "hat", "ihm", "ihr", "uns", "ihn",
+            "diese", "dieser", "dieses", "werden", "hatte", "sein", "sind", "mein"
+        ],
+        "ru": [
+            "и", "в", "не", "на", "что", "он", "она", "это", "как", "но",
+            "его", "её", "они", "мы", "вы", "же", "от", "за", "по", "из",
+            "уже", "так", "был", "была", "было", "были", "есть", "нет", "да", "бы",
+            "если", "то", "все", "или", "когда", "их", "там", "где", "кто", "чем",
+            "нас", "вас", "мне", "тебе", "себя", "тут", "ещё", "очень", "им", "ей"
+        ],
+    }
+
+    # ── Score por stopwords ───────────────────────────────────────────────────
+    scores = {lang: 0 for lang in stopwords}
+    for lang, words in stopwords.items():
+        for w in words:
+            if w in palavras_amostra:
+                scores[lang] += 1
+
+    # ── Score por bigramas comuns ─────────────────────────────────────────────
+    bigramas_amostra = set(
+        " ".join(p) for p in zip(amostra.split(), amostra.split()[1:])
+    )
+    bigramas = {
+        "pt": ["de que", "para o", "para a", "não é", "que não", "é que",
+               "da que", "no que", "a gente", "vai ser"],
+        "en": ["of the", "in the", "to the", "is a", "it is", "there is",
+               "do not", "does not", "i am", "you are"],
+        "de": ["in der", "in die", "auf der", "auf die", "ist ein", "ist die",
+               "nicht die", "nicht der", "ich bin", "es gibt"],
+        "ru": ["не было", "что это", "он был", "она была", "в том", "из них",
+               "это был", "это была", "как это", "на это"],
+    }
+    for lang, bigrams in bigramas.items():
+        for bg in bigrams:
+            if bg in bigramas_amostra:
+                scores[lang] += 2  # bigramas valem mais que unigramas
+
+    melhor = max(scores, key=scores.get)
+    return melhor if scores[melhor] > 0 else "pt"
+
 
 # ── Header ────────────────────────────────────────────────────────────────────
 st.title("Marina-Socioling")
@@ -73,10 +165,9 @@ uploaded_files = st.file_uploader(
 )
 
 if not uploaded_files:
-    st.info("Faça o upload de um ou mais arquivos para começar.")
+    st.info("Faça o upload de um ou mais arquivos CSV/TXT para começar.")
     st.stop()
 
-# Concatena todos os arquivos
 dfs = []
 for f in uploaded_files:
     _df = pd.read_csv(f, sep="\t" if f.name.endswith(".txt") else ",")
@@ -92,42 +183,38 @@ with st.expander(f"Pré-visualização — {len(df)} linhas · {len(colunas)} co
 st.markdown("---")
 
 # ── Detecção automática ───────────────────────────────────────────────────────
-dep_var    = detectar_binaria(df)
-col_texto  = detectar_texto(df)
-falante    = detectar_falante(df)
+binárias    = detectar_binárias(df)
+cols_texto  = detectar_textos(df)
+falante     = detectar_falante(df)
+excluir_base = set(cols_texto) | {falante or ""}
+sociais     = detectar_sociais(df, excluir_base)
+idioma      = detectar_idioma(df, cols_texto) if cols_texto else "pt"
 
-tem_rbrul       = dep_var is not None
-tem_variationist = col_texto is not None
+tem_rbrul        = len(binárias) > 0
+tem_variationist = len(cols_texto) > 0 and len(sociais) > 0
 
-if not tem_rbrul and not tem_variationist:
-    st.error("Não foi possível detectar colunas compatíveis com Rbrul ou Variationist.")
-    st.stop()
-
-# Exibe o que foi detectado
-with st.expander("Detecção automática", expanded=True):
+with st.expander("🔍 Detecção automática", expanded=True):
     col1, col2 = st.columns(2)
     with col1:
         st.markdown("**Rbrul**")
         if tem_rbrul:
-            excluir_rbrul = {dep_var, falante or ""}
-            fatores = [c for c in colunas if c not in excluir_rbrul]
-            rand_eff = falante
-            st.success(f"Variável dependente: `{dep_var}`")
-            st.info(f"Efeito aleatório: `{rand_eff or 'nenhum'}`")
-            st.info(f"Fatores: `{', '.join(fatores)}`")
+            st.success(f"✅ Variáveis dependentes detectadas: {len(binárias)}")
+            for b in binárias:
+                st.info(f"`{b}` — valores: {df[b].unique().tolist()}")
+            st.info(f"Efeito aleatório: `{falante or 'nenhum'}`")
+            excluir_fatores = set(binárias) | {falante or ""}
+            fatores_globais = [c for c in colunas if c not in excluir_fatores and c not in cols_texto]
+            st.info(f"Fatores: `{', '.join(fatores_globais)}`")
         else:
             st.warning("Nenhuma coluna binária detectada.")
     with col2:
         st.markdown("**Variationist**")
         if tem_variationist:
-            excluir_var = {col_texto}
-            col_variavel = detectar_variavel_social(df, excluir_var)
-            idioma = detectar_idioma(df, col_texto)
-            st.success(f"Coluna de texto: `{col_texto}`")
-            st.info(f"Variável social: `{col_variavel or 'não detectada'}`")
+            st.success(f"✅ Colunas de texto: {cols_texto}")
+            st.success(f"✅ Variáveis sociais: {sociais}")
             st.info(f"Idioma detectado: `{idioma}`")
         else:
-            st.warning("Nenhuma coluna de texto detectada.")
+            st.warning("Nenhuma coluna de texto ou variável social detectada.")
 
 st.markdown("---")
 
@@ -135,91 +222,108 @@ st.markdown("---")
 if st.button("▶ Rodar análise completa", type="primary", use_container_width=True):
 
     # ═══════════════════════════════════════════════════════════════════════════
-    # RBRUL
+    # RBRUL — um modelo por variável dependente binária
     # ═══════════════════════════════════════════════════════════════════════════
     if tem_rbrul:
-        st.subheader("Rbrul — Regressão Logística Variacionista")
-        with st.spinner("Executando modelo de regressão logística em R..."):
-            tmp_csv = os.path.join(DADOS_PATH, "rbrul_input.csv")
-            df[colunas].to_csv(tmp_csv, index=False)
+        st.subheader("📊 Rbrul — Regressão Logística Variacionista")
 
-            cmd = ["Rscript", RBRUL_SCRIPT, tmp_csv, dep_var, ",".join(fatores)]
-            if rand_eff:
-                cmd.append(rand_eff)
+        for dep_var in binárias:
+            st.markdown(f"#### Modelo: `{dep_var}`")
+            fatores = [c for c in colunas
+                       if c != dep_var
+                       and c != falante
+                       and c not in cols_texto]
 
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+            with st.spinner(f"Rodando modelo para `{dep_var}`..."):
+                tmp_csv = os.path.join(DADOS_PATH, f"rbrul_{dep_var}.csv")
+                df[colunas].to_csv(tmp_csv, index=False)
 
-        if result.returncode == 0:
-            st.success("Rbrul concluído!")
-            st.code(result.stdout, language="r")
-            st.download_button(
-                "⬇️ Baixar output Rbrul (.txt)",
-                data=result.stdout,
-                file_name="rbrul_output.txt",
-                mime="text/plain",
-            )
-        else:
-            st.error("Erro no Rbrul.")
-            st.code(result.stderr, language="bash")
+                cmd = ["Rscript", RBRUL_SCRIPT, tmp_csv, dep_var, ",".join(fatores)]
+                if falante:
+                    cmd.append(falante)
 
-    # ═══════════════════════════════════════════════════════════════════════════
-    # VARIATIONIST
-    # ═══════════════════════════════════════════════════════════════════════════
-    if tem_variationist and col_variavel:
-        st.subheader("Variationist — Métricas de Associação")
-        with st.spinner("Calculando todas as métricas de variação..."):
-            try:
-                from variationist import Inspector, InspectorArgs, Visualizer, VisualizerArgs
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
 
-                tmp_tsv = os.path.join(DADOS_PATH, "variationist_input.tsv")
-                df[[col_texto, col_variavel]].to_csv(tmp_tsv, sep="\t", index=False)
-
-                ins_args = InspectorArgs(
-                    text_names=[col_texto],
-                    var_names=[col_variavel],
-                    metrics=TODAS_METRICAS,
-                    n_tokens=1,
-                    language=idioma,
-                    stopwords=False,
-                    lowercase=True,
-                )
-
-                res = Inspector(dataset=tmp_tsv, args=ins_args).inspect()
-                st.success("Variationist concluído!")
-
-                tabs = st.tabs(TODAS_METRICAS)
-                for tab, metrica in zip(tabs, TODAS_METRICAS):
-                    with tab:
-                        try:
-                            dados_metrica = res.get(metrica, {})
-                            rows = []
-                            for token, variantes in list(dados_metrica.items())[:20]:
-                                for variante, score in variantes.items():
-                                    rows.append({"token": token, "variante": variante, "score": score})
-                            if rows:
-                                df_tab = pd.DataFrame(rows).sort_values("score", ascending=False)
-                                st.dataframe(df_tab, use_container_width=True)
-                                fig = px.bar(df_tab.head(20), x="token", y="score",
-                                             color="variante", title=f"{metrica} — Top 20")
-                                st.plotly_chart(fig, use_container_width=True)
-                        except Exception:
-                            st.json(res.get(metrica, {}))
-
-                charts_path = os.path.join(DADOS_PATH, "charts")
-                os.makedirs(charts_path, exist_ok=True)
-                vis_args = VisualizerArgs(output_folder=charts_path, output_formats=["html"])
-                Visualizer(input_json=res, args=vis_args).create()
-
+            if result.returncode == 0:
+                st.success(f"✅ Modelo `{dep_var}` concluído!")
+                st.code(result.stdout, language="r")
                 st.download_button(
-                    "⬇️ Baixar resultados (.json)",
-                    data=json.dumps(res, indent=2, ensure_ascii=False),
-                    file_name="variationist_output.json",
-                    mime="application/json",
+                    f"⬇️ Baixar output — {dep_var} (.txt)",
+                    data=result.stdout,
+                    file_name=f"rbrul_{dep_var}.txt",
+                    mime="text/plain",
+                    key=f"dl_rbrul_{dep_var}",
                 )
+            else:
+                st.error(f"❌ Erro no modelo `{dep_var}`.")
+                st.code(result.stderr, language="bash")
 
-            except Exception as e:
-                st.error(f"Erro no Variationist: {e}")
-                st.exception(e)
+    # ═══════════════════════════════════════════════════════════════════════════
+    # VARIATIONIST — uma análise por variável social, todas as métricas
+    # ═══════════════════════════════════════════════════════════════════════════
+    if tem_variationist:
+        st.subheader("📈 Variationist — Métricas de Associação")
 
-    elif tem_variationist and not col_variavel:
-        st.warning("Variationist: nenhuma variável social detectada no arquivo.")
+        for col_texto in cols_texto:
+            df = corrigir_texto(df, col_texto)
+
+        for col_variavel in sociais:
+            st.markdown(f"#### Variável social: `{col_variavel}`")
+
+            with st.spinner(f"Calculando métricas para `{col_variavel}`..."):
+                try:
+                    from variationist import Inspector, InspectorArgs, Visualizer, VisualizerArgs
+
+                    col_texto_atual = cols_texto[0]
+                    tmp_tsv = os.path.join(DADOS_PATH, f"variationist_{col_variavel}.tsv")
+                    df[[col_texto_atual, col_variavel]].to_csv(tmp_tsv, sep="\t", index=False)
+
+                    ins_args = InspectorArgs(
+                        text_names=[col_texto_atual],
+                        var_names=[col_variavel],
+                        metrics=TODAS_METRICAS,
+                        n_tokens=1,
+                        language=idioma,
+                        stopwords=False,
+                        lowercase=True,
+                    )
+
+                    res = Inspector(dataset=tmp_tsv, args=ins_args).inspect()
+                    st.success(f"✅ Análise `{col_variavel}` concluída!")
+
+                    tabs = st.tabs(TODAS_METRICAS)
+                    for tab, metrica in zip(tabs, TODAS_METRICAS):
+                        with tab:
+                            try:
+                                dados_metrica = res.get(metrica, {})
+                                rows = []
+                                for token, variantes in list(dados_metrica.items())[:20]:
+                                    for variante, score in variantes.items():
+                                        rows.append({"token": token, "variante": variante, "score": score})
+                                if rows:
+                                    df_tab = pd.DataFrame(rows).sort_values("score", ascending=False)
+                                    st.dataframe(df_tab, use_container_width=True)
+                                    fig = px.bar(df_tab.head(20), x="token", y="score",
+                                                 color="variante", title=f"{metrica} · {col_variavel} — Top 20")
+                                    st.plotly_chart(fig, use_container_width=True)
+                                else:
+                                    st.info("Sem dados para esta métrica.")
+                            except Exception:
+                                st.json(res.get(metrica, {}))
+
+                    charts_path = os.path.join(DADOS_PATH, "charts")
+                    os.makedirs(charts_path, exist_ok=True)
+                    vis_args = VisualizerArgs(output_folder=charts_path, output_formats=["html"])
+                    Visualizer(input_json=res, args=vis_args).create()
+
+                    st.download_button(
+                        f"⬇️ Baixar resultados — {col_variavel} (.json)",
+                        data=json.dumps(res, indent=2, ensure_ascii=False),
+                        file_name=f"variationist_{col_variavel}.json",
+                        mime="application/json",
+                        key=f"dl_var_{col_variavel}",
+                    )
+
+                except Exception as e:
+                    st.error(f"❌ Erro em `{col_variavel}`: {e}")
+                    st.exception(e)
