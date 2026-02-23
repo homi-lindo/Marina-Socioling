@@ -22,7 +22,7 @@ with st.sidebar:
     st.markdown("---")
     ferramenta = st.radio(
         "Selecione a ferramenta",
-        ["Análise Regresiva", "Análise Variacionista"],
+        ["📊 Rbrul", "🧩 Variationist"],
         label_visibility="collapsed",
     )
     st.markdown("---")
@@ -57,11 +57,10 @@ st.markdown("---")
 # ═════════════════════════════════════════════════════════════════════════════
 # RBRUL
 # ═════════════════════════════════════════════════════════════════════════════
-if ferramenta == "Análise Regressiva":
-    st.header("Análise Regressiva")
+if ferramenta == "📊 Rbrul":
+    st.header("📊 Análise com Rbrul")
     st.markdown(
         "Regressão logística variacionista com efeitos mistos, "
-        "substituto direto do GoldVarb X."
     )
 
     col1, col2 = st.columns(2)
@@ -127,13 +126,13 @@ if ferramenta == "Análise Regressiva":
 # ═════════════════════════════════════════════════════════════════════════════
 # VARIATIONIST
 # ═════════════════════════════════════════════════════════════════════════════
-elif ferramenta == "Análise Variacionista":
-    st.header("Análise Variacionista")
+elif ferramenta == "🧩 Variationist":
+    st.header("🧩 Análise com Variationist")
     st.markdown(
         "Análise de variação e métricas de associação em corpus textual "
         "([ACL 2024](https://aclanthology.org/2024.acl-demos.33/))."
     )
-
+    
     col1, col2 = st.columns(2)
     with col1:
         col_texto = st.selectbox(
