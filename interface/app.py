@@ -22,7 +22,7 @@ with st.sidebar:
     st.markdown("---")
     ferramenta = st.radio(
         "Selecione a ferramenta",
-        ["📊 Rbrul", "🧩 Variationist"],
+        ["Regressão", "Variação"],
         label_visibility="collapsed",
     )
     st.markdown("---")
