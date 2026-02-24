@@ -242,7 +242,7 @@ for f in uploaded_files:
     dfs.append(_df)
 
 df = pd.concat(dfs, ignore_index=True)
-colunas = [c for c in df.columns if c != "_arquivo"]
+colunas = [c for c in df.columns if c not in ("_arquivo", "variante")]
 
 with st.expander(f"Pré-visualização — {len(df)} linhas · {len(colunas)} colunas · {len(uploaded_files)} arquivo(s)"):
     st.dataframe(df.head(20), use_container_width=True)
@@ -315,7 +315,8 @@ if st.button("▶ Rodar análise completa", type="primary", use_container_width=
             fatores = [c for c in colunas
                        if c != dep_var
                        and c not in rand_detectados
-                       and c not in cols_texto]
+                       and c not in cols_texto
+                       and c != "variante"]
             with st.spinner(f"Rodando modelo para `{dep_var}`..."):
                 tmp_csv = os.path.join(DADOS_PATH, f"rbrul_{dep_var}.csv")
                 df[colunas].to_csv(tmp_csv, index=False)
