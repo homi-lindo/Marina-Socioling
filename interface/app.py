@@ -65,6 +65,15 @@ CANDIDATOS_RAND = [
 ]
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
+def detectar_binárias(df):
+    """
+    Retorna colunas com 2–6 valores únicos do tipo object.
+    Prioriza dep_goldvarb se existir (arquivo GoldVarb).
+    """
+    if "dep_goldvarb" in df.columns:
+        return ["dep_goldvarb"]
+    return [c for c in df.columns
+            if df[c].dtype == object and 2 <= df[c].nunique() <= 6]
 
 def detectar_dependente(df):
     """
