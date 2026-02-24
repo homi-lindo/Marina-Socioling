@@ -21,6 +21,12 @@ rand_effs <- if (length(args) >= 4 && nchar(args[4]) > 0)
 
 cat("=== Carregando dados ===\n")
 dados <- read.csv(csv_path, stringsAsFactors = TRUE)
+
+# Garante que fatores e dep_var são factor (necessário para contr.sum)
+for (col in c(fatores, dep_var)) {
+  if (col %in% names(dados)) dados[[col]] <- as.factor(dados[[col]])
+}
+
 cat(sprintf("Linhas: %d | Colunas: %d\n", nrow(dados), ncol(dados)))
 
 suppressPackageStartupMessages({
