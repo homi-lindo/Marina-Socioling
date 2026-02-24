@@ -296,7 +296,8 @@ with st.expander("Detecção automática", expanded=True):
             st.success(f"Variáveis sociais: {sociais}")
             st.info(f"Idioma detectado: `{idioma}`")
         else:
-            st.warning("Nenhuma coluna de texto ou variável social detectada.")
+            st.warning("⚠️ Variationist requer coluna de texto contínuo.")
+            st.info("ℹ️ Arquivos GoldVarb usam apenas o Rbrul.")
 
 st.markdown("---")
 
