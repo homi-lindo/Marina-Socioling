@@ -73,8 +73,8 @@ def detectar_dependente(df):
     """
     if "dep_goldvarb" in df.columns:
         n = df["dep_goldvarb"].nunique()
-    return [("dep_goldvarb", "binaria" if n == 2 else "multinivel")]
-    candidatas = []
+        return [("dep_goldvarb", "binaria" if n == 2 else "multinivel")]
+        candidatas = []
     for c in df.columns:
         n = df[c].nunique()
         if 2 <= n <= 6 and df[c].dtype == object:
