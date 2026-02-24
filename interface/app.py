@@ -66,8 +66,31 @@ CANDIDATOS_RAND = [
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-def detectar_binárias(df):
-    return [c for c in df.columns if df[c].nunique() == 2]
+def detectar_dependente(df):
+    """
+    Retorna (coluna, tipo) onde tipo é 'binaria' ou 'multinivel'.
+    Prioriza dep_goldvarb, depois colunas com 2-6 valores únicos.
+    """
+    if "dep_goldvarb" in df.columns:
+        n = df["dep_goldvarb"].nunique()
+        return [("dep_goldvarb", "binaria" if n == 2 else "multinivel")]
+    candidatas = []
+    for c in df.columns:
+        n = df[c].nunique()
+        if 2 <= n <= 6 and df[c].dtype == object:
+            tipo = "binaria" if n == 2 else "multinivel"
+            candidatas.append((c, tipo))
+    return candidatas
+
+def gerar_pares(df, col):
+    """Para variável multinível, gera subsets binários par a par."""
+    from itertools import combinations
+    valores = df[col].dropna().unique().tolist()
+    pares = []
+    for v1, v2 in combinations(valores, 2):
+        subset = df[df[col].isin([v1, v2])].copy()
+        pares.append((f"{v1}_vs_{v2}", subset, col))
+    return pares
 
 def detectar_textos(df):
     cols = []
