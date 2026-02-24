@@ -4,7 +4,38 @@ import subprocess
 import os
 import json
 import re
+import io
 import plotly.express as px
+
+# ── Funções GoldVarb ──────────────────────────────────────────────────────────
+
+def parse_goldvarb(conteudo_bytes: bytes) -> pd.DataFrame:
+    linhas = conteudo_bytes.decode("latin-1").splitlines()
+    rows = []
+    for linha in linhas:
+        linha = linha.strip()
+        if not linha or not linha.startswith("("):
+            continue
+        linha = linha.lstrip("(")
+        partes = re.split(r'\s+', linha, maxsplit=1)
+        if len(partes) < 2:
+            continue
+        codigo, variante = partes[0], partes[1].strip()
+        row = {f"grupo_{chr(65+i)}": c for i, c in enumerate(codigo)}
+        row["variante"] = variante
+        rows.append(row)
+    return pd.DataFrame(rows)
+
+def exportar_goldvarb(df: pd.DataFrame, col_variante: str = "variante") -> str:
+    colunas_grupo = [c for c in df.columns if c != col_variante]
+    linhas = []
+    for _, row in df.iterrows():
+        codigo = "".join(str(row[c]) for c in colunas_grupo)
+        variante = row[col_variante]
+        linhas.append(f"({codigo}   {variante}")
+    return "\n".join(linhas)
+
+# ── Configuração da página ────────────────────────────────────────────────────
 
 st.set_page_config(
     page_title="Marina-Socioling",
@@ -12,19 +43,20 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-DADOS_PATH  = os.environ.get("DADOS_PATH", "/app/dados")
+DADOS_PATH = os.environ.get("DADOS_PATH", "/app/dados")
 RBRUL_SCRIPT = "/app/scripts/run_rbrul.R"
 
-METRICAS_PMI     = ["pmi", "n_pmi", "p_pmi", "np_pmi", "w_pmi", "nw_pmi",
-                    "pw_pmi", "npw_pmi", "np_relevance", "nw_relevance", "npw_relevance"]
+METRICAS_PMI = ["pmi", "n_pmi", "p_pmi", "np_pmi", "w_pmi", "nw_pmi",
+                "pw_pmi", "npw_pmi", "np_relevance", "nw_relevance", "npw_relevance"]
 METRICAS_LEXICAIS = ["ttr", "root_ttr", "maas", "log_ttr"]
-METRICAS_CORPUS   = ["freq", "stats"]
-TODAS_METRICAS    = METRICAS_PMI + METRICAS_LEXICAIS + METRICAS_CORPUS
+METRICAS_CORPUS = ["freq", "stats"]
+TODAS_METRICAS = METRICAS_PMI + METRICAS_LEXICAIS + METRICAS_CORPUS
 
 CANDIDATOS_SOCIAIS = [
     "genero", "gênero", "faixa_etaria", "faixa etária", "escolaridade",
     "regiao", "região", "estilo", "classe", "sexo", "grupo"
 ]
+
 CANDIDATOS_RAND = [
     "falante", "speaker", "informante", "participante", "sujeito",
     "palavra", "item", "item_lexical", "lexema", "vocábulo",
@@ -33,6 +65,7 @@ CANDIDATOS_RAND = [
 ]
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
 def detectar_binárias(df):
     return [c for c in df.columns if df[c].nunique() == 2]
 
@@ -74,10 +107,8 @@ def detectar_idioma(df, cols_texto):
         amostra += " " + " ".join(df[col].dropna().head(50).tolist()).lower()
     amostra_padded = f" {amostra} "
 
-    # Cirílico → russo imediato
     if sum(1 for c in amostra if '\u0400' <= c <= '\u04FF') > 10:
         return "ru"
-    # Umlauts/ß → alemão imediato
     if sum(1 for c in amostra if c in "äöüßÄÖÜ") > 10:
         return "de"
 
@@ -113,6 +144,7 @@ def detectar_idioma(df, cols_texto):
             "если", "то", "все", "или", "когда", "их", "там", "где", "кто", "чем"
         ],
     }
+
     bigramas = {
         "pt": ["de que", "para o", "para a", "não é", "que não", "é que",
                "a gente", "vai ser", "que eu", "eu não", "eu tô", "tá tudo"],
@@ -138,25 +170,40 @@ def detectar_idioma(df, cols_texto):
     return melhor if scores[melhor] > 0 else "pt"
 
 # ── Header ────────────────────────────────────────────────────────────────────
+
 st.title("Marina-Socioling")
 st.caption("Rbrul — Johnson (2009) · Variationist — ACL 2024")
 st.markdown("---")
 
 # ── Upload ────────────────────────────────────────────────────────────────────
+
 uploaded_files = st.file_uploader(
-    "Upload de arquivos CSV ou TXT",
-    type=["csv", "txt"],
+    "Upload de arquivos CSV, TXT ou GoldVarb (.tok/.cod)",
+    type=["csv", "txt", "tok", "cod"],
     accept_multiple_files=True,
-    help="CSV ou TXT com cabeçalho. Separador: vírgula (CSV) ou tabulação (TXT).",
+    help="CSV/TXT com cabeçalho, ou arquivo GoldVarb no formato (XXXXXXX   variante",
 )
 
 if not uploaded_files:
-    st.info("Faça o upload de um ou mais arquivos CSV/TXT para começar.")
+    st.info("Faça o upload de um ou mais arquivos para começar.")
     st.stop()
 
 dfs = []
 for f in uploaded_files:
-    _df = pd.read_csv(f, sep="\t" if f.name.endswith(".txt") else ",")
+    conteudo = f.read()
+    ext = f.name.rsplit(".", 1)[-1].lower()
+    if ext in ("tok", "cod"):
+        _df = parse_goldvarb(conteudo)
+        st.info(f"📂 GoldVarb detectado: `{f.name}` → colunas grupo_A…grupo_N + variante")
+    elif ext == "txt":
+        amostra = conteudo.decode("latin-1", errors="replace").lstrip()
+        if amostra.startswith("("):
+            _df = parse_goldvarb(conteudo)
+            st.info(f"📂 Formato GoldVarb detectado em `{f.name}`")
+        else:
+            _df = pd.read_csv(io.BytesIO(conteudo), sep="\t")
+    else:
+        _df = pd.read_csv(io.BytesIO(conteudo))
     _df["_arquivo"] = f.name
     dfs.append(_df)
 
@@ -169,27 +216,25 @@ with st.expander(f"Pré-visualização — {len(df)} linhas · {len(colunas)} co
 st.markdown("---")
 
 # ── Detecção automática ───────────────────────────────────────────────────────
-binárias       = detectar_binárias(df)
-cols_texto     = detectar_textos(df)
+
+binárias = detectar_binárias(df)
+cols_texto = detectar_textos(df)
 rand_detectados = detectar_efeitos_aleatorios(df)
 excluir_sociais = set(cols_texto)
-sociais        = detectar_sociais(df, excluir_sociais)
-idioma         = detectar_idioma(df, cols_texto) if cols_texto else "pt"
+sociais = detectar_sociais(df, excluir_sociais)
+idioma = detectar_idioma(df, cols_texto) if cols_texto else "pt"
 
-tem_rbrul        = len(binárias) > 0
+tem_rbrul = len(binárias) > 0
 tem_variationist = len(cols_texto) > 0 and len(sociais) > 0
 
 with st.expander("Detecção automática", expanded=True):
     col1, col2 = st.columns(2)
-
     with col1:
         st.markdown("**Rbrul**")
         if tem_rbrul:
             st.success(f"Variáveis dependentes: {len(binárias)}")
             for b in binárias:
                 st.info(f"`{b}` — valores: {df[b].unique().tolist()}")
-
-            # Checkboxes para efeitos aleatórios
             st.markdown("**Efeitos aleatórios**")
             rand_selecionados = []
             if rand_detectados:
@@ -198,13 +243,11 @@ with st.expander("Detecção automática", expanded=True):
                         rand_selecionados.append(col)
             else:
                 st.info("Nenhum efeito aleatório detectado.")
-
             excluir_fatores = set(binárias) | set(rand_detectados) | set(cols_texto)
             fatores_globais = [c for c in colunas if c not in excluir_fatores]
             st.info(f"Fatores: `{', '.join(fatores_globais)}`")
         else:
             st.warning("Nenhuma coluna binária detectada.")
-
     with col2:
         st.markdown("**Variationist**")
         if tem_variationist:
@@ -217,41 +260,47 @@ with st.expander("Detecção automática", expanded=True):
 st.markdown("---")
 
 # ── Botão único ───────────────────────────────────────────────────────────────
+
 if st.button("▶ Rodar análise completa", type="primary", use_container_width=True):
 
     # ═══════════════════════════════════════════════════════════════════════════
     # RBRUL — um modelo por variável dependente binária
     # ═══════════════════════════════════════════════════════════════════════════
+
     if tem_rbrul:
         st.subheader("Rbrul — Regressão Logística Variacionista")
-
         for dep_var in binárias:
             st.markdown(f"#### Modelo: `{dep_var}`")
             fatores = [c for c in colunas
                        if c != dep_var
                        and c not in rand_detectados
                        and c not in cols_texto]
-
             with st.spinner(f"Rodando modelo para `{dep_var}`..."):
                 tmp_csv = os.path.join(DADOS_PATH, f"rbrul_{dep_var}.csv")
                 df[colunas].to_csv(tmp_csv, index=False)
-
                 rand_arg = ",".join(rand_selecionados) if rand_selecionados else ""
                 cmd = ["Rscript", RBRUL_SCRIPT, tmp_csv, dep_var, ",".join(fatores)]
                 if rand_arg:
                     cmd.append(rand_arg)
-
                 result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
 
             if result.returncode == 0:
                 st.success(f"Modelo `{dep_var}` concluído!")
                 st.code(result.stdout, language="r")
                 st.download_button(
-                    f"Baixar output — {dep_var} (.txt)",
+                    f"⬇️ Baixar output — {dep_var} (.txt)",
                     data=result.stdout,
                     file_name=f"rbrul_{dep_var}.txt",
                     mime="text/plain",
                     key=f"dl_rbrul_{dep_var}",
+                )
+                goldvarb_out = exportar_goldvarb(df)
+                st.download_button(
+                    f"⬇️ Baixar como GoldVarb — {dep_var} (.tok)",
+                    data=goldvarb_out.encode("latin-1"),
+                    file_name=f"corpus_{dep_var}.tok",
+                    mime="text/plain",
+                    key=f"dl_tok_{dep_var}",
                 )
             else:
                 st.error(f"❌ Erro no modelo `{dep_var}`.")
@@ -260,15 +309,13 @@ if st.button("▶ Rodar análise completa", type="primary", use_container_width=
     # ═══════════════════════════════════════════════════════════════════════════
     # VARIATIONIST — uma análise por variável social, todas as métricas
     # ═══════════════════════════════════════════════════════════════════════════
+
     if tem_variationist:
         st.subheader("Variationist — Métricas de Associação")
-
         for col_texto in cols_texto:
             df = corrigir_texto(df, col_texto)
-
         for col_variavel in sociais:
             st.markdown(f"#### Variável social: `{col_variavel}`")
-
             with st.spinner(f"Calculando métricas para `{col_variavel}`..."):
                 try:
                     from variationist import Inspector, InspectorArgs, Visualizer, VisualizerArgs
@@ -317,7 +364,7 @@ if st.button("▶ Rodar análise completa", type="primary", use_container_width=
                     Visualizer(input_json=res, args=vis_args).create()
 
                     st.download_button(
-                        f"Baixar resultados — {col_variavel} (.json)",
+                        f"⬇️ Baixar resultados — {col_variavel} (.json)",
                         data=json.dumps(res, indent=2, ensure_ascii=False),
                         file_name=f"variationist_{col_variavel}.json",
                         mime="application/json",
