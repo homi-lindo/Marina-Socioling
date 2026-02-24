@@ -57,7 +57,7 @@ cat("\n=== Sumário do Modelo ===\n")
 print(summary(modelo))
 
 cat("\n=== Pesos de Fator (Factor Weights) ===\n")
-coefs   <- fixef(if (!is.null(rand_effs)) modelo else modelo)
+coefs <- if (!is.null(rand_effs)) fixef(modelo) else coef(modelo)
 weights <- round(boot::inv.logit(coefs), 3)
 print(data.frame(Coeficiente = coefs, Peso_de_Fator = weights))
 
