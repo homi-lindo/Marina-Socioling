@@ -1,4 +1,3 @@
-# Instala pacotes se ausentes
 pkgs <- c("lme4", "boot")
 new_pkgs <- pkgs[!(pkgs %in% installed.packages()[,"Package"])]
 if (length(new_pkgs) > 0) {
@@ -22,7 +21,7 @@ rand_effs <- if (length(args) >= 4 && nchar(args[4]) > 0)
 cat("=== Carregando dados ===\n")
 dados <- read.csv(csv_path, stringsAsFactors = TRUE)
 
-# Garante que fatores e dep_var são factor (necessário para contr.sum)
+# Garante que fatores e dep_var são factor
 for (col in c(fatores, dep_var)) {
   if (col %in% names(dados)) dados[[col]] <- as.factor(dados[[col]])
 }
@@ -46,8 +45,12 @@ if (!is.null(rand_effs)) {
                   family = binomial, control = glmerControl(optimizer = "bobyqa"))
 } else {
   cat("Modelo: Regressão Logística Simples (glm)\n")
+  # Aplica contr.sum apenas em fatores válidos (is.factor com 2+ níveis)
+  fatores_validos <- fatores[sapply(fatores, function(x)
+    x %in% names(dados) && is.factor(dados[[x]]) && nlevels(dados[[x]]) >= 2
+  )]
   modelo <- glm(as.formula(formula_str), data = dados, family = binomial,
-                contrasts = setNames(lapply(fatores, function(x) "contr.sum"), fatores))
+                contrasts = setNames(lapply(fatores_validos, function(x) "contr.sum"), fatores_validos))
 }
 
 cat("\n=== Sumário do Modelo ===\n")
