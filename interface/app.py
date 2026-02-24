@@ -226,11 +226,13 @@ for f in uploaded_files:
     ext = f.name.rsplit(".", 1)[-1].lower()
     if ext in ("tok", "cod"):
         _df = parse_goldvarb(conteudo)
-        st.info(f"📂 GoldVarb detectado: `{f.name}` → colunas grupo_A…grupo_N + variante")
+        _df = _df.rename(columns={"grupo_A": "dep_var_goldvarb"})
+        st.info(f"📂 GoldVarb detectado: `{f.name}` → `dep_var_goldvarb` = variável dependente")
     elif ext == "txt":
         amostra = conteudo.decode("latin-1", errors="replace").lstrip()
         if amostra.startswith("("):
             _df = parse_goldvarb(conteudo)
+            _df = _df.rename(columns={"grupo_A": "dep_var_goldvarb"})
             st.info(f"📂 Formato GoldVarb detectado em `{f.name}`")
         else:
             _df = pd.read_csv(io.BytesIO(conteudo), sep="\t")
@@ -250,6 +252,13 @@ st.markdown("---")
 # ── Detecção automática ───────────────────────────────────────────────────────
 
 binárias = detectar_binárias(df)
+
+def detectar_binárias(df):
+    if "dep_var_goldvarb" in df.columns:
+        return ["dep_var_goldvarb"]
+    return [c for c in df.columns
+            if df[c].dtype == object and 2 <= df[c].nunique() <= 6]
+    
 cols_texto = detectar_textos(df)
 rand_detectados = detectar_efeitos_aleatorios(df)
 excluir_sociais = set(cols_texto)
